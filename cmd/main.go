@@ -7,7 +7,7 @@ import (
 	"skymates-api/internal/service/impl"
 )
 
-func initDatabase() impl.Database {
+func initDatabase() service.Database {
 	// 初始化数据库连接
 	// 返回数据库实例
 	return nil // 这里需要返回具体的数据库实现
