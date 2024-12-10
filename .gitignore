@@ -1,0 +1,23 @@
+# IDE 相关
+.idea/
+.vscode/
+
+# 系统文件
+.DS_Store
+
+# 环境变量文件
+.env
+
+# 编译输出目录
+bin/
+
+# Go 编译产物
+*.test
+*.out
+
+# 二进制文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
