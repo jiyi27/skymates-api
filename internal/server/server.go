@@ -3,20 +3,20 @@ package server
 import (
 	"net/http"
 	"skymates-api/internal/handler"
-	"skymates-api/internal/service"
+	"skymates-api/internal/repositories"
 )
 
 type Server struct {
 	mux *http.ServeMux
 }
 
-func NewServer(services *Services) *Server {
+func NewServer(repos *Repositories) *Server {
 	mux := http.NewServeMux()
 
 	// 初始化各个 handler
-	userHandler := handler.NewUserHandler(services.UserService)
-	postHandler := handler.NewPostHandler(services.PostService)
-	commentHandler := handler.NewCommentHandler(services.CommentService)
+	userHandler := handler.NewUserHandler(repos.UserRepository)
+	postHandler := handler.NewPostHandler(repos.PostRepository)
+	commentHandler := handler.NewCommentHandler(repos.CommentRepository)
 
 	// 注册路由
 	userHandler.RegisterRoutes(mux)
@@ -30,8 +30,8 @@ func (s *Server) Start(addr string) error {
 	return http.ListenAndServe(addr, s.mux)
 }
 
-type Services struct {
-	UserService    service.UserService
-	PostService    service.PostService
-	CommentService service.CommentService
+type Repositories struct {
+	UserRepository    repositories.UserRepository
+	PostRepository    repositories.PostRepository
+	CommentRepository repositories.CommentRepository
 }

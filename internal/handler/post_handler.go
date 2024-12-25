@@ -2,15 +2,15 @@ package handler
 
 import (
 	"net/http"
-	"skymates-api/internal/service"
+	"skymates-api/internal/repositories"
 )
 
 type PostHandler struct {
 	BaseHandler
-	postService service.PostService
+	postService repositories.PostRepository
 }
 
-func NewPostHandler(ps service.PostService) *PostHandler {
+func NewPostHandler(ps repositories.PostRepository) *PostHandler {
 	return &PostHandler{postService: ps}
 }
 

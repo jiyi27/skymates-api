@@ -2,15 +2,15 @@ package handler
 
 import (
 	"net/http"
-	"skymates-api/internal/service"
+	"skymates-api/internal/repositories"
 )
 
 type CommentHandler struct {
 	BaseHandler
-	commentService service.CommentService
+	commentService repositories.CommentRepository
 }
 
-func NewCommentHandler(cs service.CommentService) *CommentHandler {
+func NewCommentHandler(cs repositories.CommentRepository) *CommentHandler {
 	return &CommentHandler{commentService: cs}
 }
 

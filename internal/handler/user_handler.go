@@ -2,17 +2,17 @@ package handler
 
 import (
 	"net/http"
-	"skymates-api/internal/service"
+	"skymates-api/internal/repositories"
 	"skymates-api/internal/types"
 )
 
 type UserHandler struct {
 	BaseHandler
-	userService service.UserService
+	userRepo repositories.UserRepository
 }
 
-func NewUserHandler(us service.UserService) *UserHandler {
-	return &UserHandler{userService: us}
+func NewUserHandler(us repositories.UserRepository) *UserHandler {
+	return &UserHandler{userRepo: us}
 }
 
 func (h *UserHandler) RegisterRoutes(mux *http.ServeMux) {
