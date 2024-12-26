@@ -8,6 +8,7 @@ type UserRepository interface {
 	Create(user *types.User) error
 	GetByID(id string) (*types.User, error)
 	GetByUsername(username string) (*types.User, error)
+	CheckUsernameExists(username string) (bool, error)
 }
 
 type PostRepository interface {
