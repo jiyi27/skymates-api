@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	log.Print("Starting server...")
 	db, err := impl.NewPostgresDB()
 	if err != nil {
 		log.Fatal("init database failed: ", err)
@@ -20,5 +21,6 @@ func main() {
 	}
 
 	srv := server.NewServer(repos)
+	log.Print("Server started at :8080")
 	log.Fatal(srv.Start(":8080"))
 }
