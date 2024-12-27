@@ -2,8 +2,11 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	servererrors "skymates-api/internal/errors"
 	"skymates-api/internal/repositories"
 	"skymates-api/internal/types"
 )
@@ -28,84 +31,71 @@ func (p *PostgresUserRepository) Create(user *types.User) error {
 	).Scan(&user.ID)
 
 	if err != nil {
-		return fmt.Errorf("创建用户失败: %w", err)
+		return servererrors.NewDatabaseError(fmt.Sprintf("repository.User.Create: failed to insert user (username=%s, email=%s)",
+			user.Username, user.Email), err)
 	}
 
 	return nil
 }
 
 func (p *PostgresUserRepository) GetByID(id string) (*types.User, error) {
-	return nil, nil
-	//// 根据用户ID查询用户信息
-	//query := `
-	//    SELECT id, username, password_hash, email, created_at, updated_at
-	//    FROM users
-	//    WHERE id = $1
-	//`
-	//
-	//// 初始化用户结构体
-	//user := &types.User{}
-	//
-	//// 执行查询并扫描结果到结构体
-	//err := p.pool.QueryRow(
-	//	context.Background(),
-	//	query,
-	//	id,
-	//).Scan(
-	//	&user.ID,
-	//	&user.Username,
-	//	&user.HashedPassword,
-	//	&user.Email,
-	//	&user.CreatedAt,
-	//	&user.UpdatedAt,
-	//)
-	//
-	//// 处理查询错误
-	//if err != nil {
-	//	if err == pgx.ErrNoRows {
-	//		return nil, fmt.Errorf("未找到ID为%s的用户", id)
-	//	}
-	//	return nil, fmt.Errorf("查询用户失败: %w", err)
-	//}
-	//
-	//return user, nil
+	query := `
+	   SELECT id, username, password_hash, email, created_at, updated_at
+	   FROM users
+	   WHERE id = $1`
+
+	user := &types.User{}
+	err := p.pool.QueryRow(
+		context.Background(),
+		query,
+		id,
+	).Scan(
+		&user.ID,
+		&user.Username,
+		&user.HashedPassword,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, servererrors.NewNotFoundError(fmt.Sprintf("repository.User.GetByID: no such user, ID: %v", id), nil)
+		}
+		return nil, servererrors.NewDatabaseError("repository.User.GetByID: database error", err)
+	}
+
+	return user, nil
 }
 
 func (p *PostgresUserRepository) GetByUsername(username string) (*types.User, error) {
-	return nil, nil
-	//// 根据用户名查询用户信息
-	//query := `
-	//    SELECT id, username, password_hash, email, created_at, updated_at
-	//    FROM users
-	//    WHERE username = $1
-	//`
-	//
-	//// 初始化用户结构体
-	//user := &types.User{}
-	//
-	//// 执行查询并扫描结果到结构体
-	//err := p.pool.QueryRow(
-	//	context.Background(),
-	//	query,
-	//	username,
-	//).Scan(
-	//	&user.ID,
-	//	&user.Username,
-	//	&user.HashedPassword,
-	//	&user.Email,
-	//	&user.CreatedAt,
-	//	&user.UpdatedAt,
-	//)
-	//
-	//// 处理查询错误
-	//if err != nil {
-	//	if err == pgx.ErrNoRows {
-	//		return nil, fmt.Errorf("未找到用户名为%s的用户", username)
-	//	}
-	//	return nil, fmt.Errorf("查询用户失败: %w", err)
-	//}
-	//
-	//return user, nil
+	query := `
+	   SELECT id, username, password_hash, email, created_at, updated_at
+	   FROM users
+	   WHERE username = $1`
+
+	user := &types.User{}
+	err := p.pool.QueryRow(
+		context.Background(),
+		query,
+		username,
+	).Scan(
+		&user.ID,
+		&user.Username,
+		&user.HashedPassword,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, servererrors.NewNotFoundError(fmt.Sprintf("repository.User.GetByUsername: no such user, username: %v", username), nil)
+		}
+		return nil, servererrors.NewDatabaseError("repository.User.GetByUsername: database error", err)
+	}
+
+	return user, nil
 }
 
 func (p *PostgresUserRepository) CheckUsernameExists(username string) (bool, error) {
@@ -115,7 +105,7 @@ func (p *PostgresUserRepository) CheckUsernameExists(username string) (bool, err
 	err := p.pool.QueryRow(context.Background(), query, username).Scan(&exists)
 
 	if err != nil {
-		return false, fmt.Errorf("检查用户名是否存在失败: %w", err)
+		return false, servererrors.NewDatabaseError("repository.User.CheckUsernameExists: database error", err)
 	}
 
 	return exists, nil

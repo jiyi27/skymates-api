@@ -20,7 +20,7 @@ func (h *BaseHandler) ResponseJSON(w http.ResponseWriter, code int, message stri
 		Message: message,
 		Data:    data,
 	}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
+		log.Printf("handler.ResponseJSON: failed to encode response: %v", err)
 	}
 }
 
