@@ -28,12 +28,9 @@ func (e *ServerError) Error() string {
 	return e.Message
 }
 
-// Is 实现 Is() 方法是为了 自定义 通过 errors.Is(err, target error) 比较时的逻辑
-// *ServerError 也实现了 error 接口
-// 可是为什么这里的 Is() 方法的参数是 error 类型, 而不能是 *ServerError 类型呢?
+// Is 自定义 通过 errors.Is(err, target error) 比较错误时的比较逻辑
 func (e *ServerError) Is(target error) bool {
-	// target 是 error,
-	// 尝试将 target 转换为 *ServerError 类型, 并将结果存储在 t 中
+	// 将 target (interface) 转换为 *ServerError 类型, 并将结果存储在 t 中
 	var t *ServerError
 	ok := errors.As(target, &t)
 
