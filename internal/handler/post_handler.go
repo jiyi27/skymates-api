@@ -10,11 +10,9 @@ type PostHandler struct {
 	postService repositories.PostRepository
 }
 
-func NewPostHandler(ps repositories.PostRepository) *PostHandler {
-	return &PostHandler{postService: ps}
-}
+func RegisterPostRoutes(ps repositories.PostRepository, mux *http.ServeMux) {
+	h := &PostHandler{postService: ps}
 
-func (h *PostHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/posts", h.handlePosts)
 	mux.HandleFunc("/api/posts/{id}", h.handlePost)
 }

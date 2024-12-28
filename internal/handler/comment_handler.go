@@ -10,11 +10,9 @@ type CommentHandler struct {
 	commentService repositories.CommentRepository
 }
 
-func NewCommentHandler(cs repositories.CommentRepository) *CommentHandler {
-	return &CommentHandler{commentService: cs}
-}
+func RegisterCommentRoutes(cs repositories.CommentRepository, mux *http.ServeMux) {
+	h := &CommentHandler{commentService: cs}
 
-func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/posts/{postID}/comments", h.handleComments)
 }
 

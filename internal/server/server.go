@@ -13,15 +13,9 @@ type Server struct {
 func NewServer(repos *Repositories) *Server {
 	mux := http.NewServeMux()
 
-	// 初始化各个 handler
-	userHandler := handler.NewUserHandler(repos.UserRepository)
-	postHandler := handler.NewPostHandler(repos.PostRepository)
-	commentHandler := handler.NewCommentHandler(repos.CommentRepository)
-
-	// 注册路由
-	userHandler.RegisterRoutes(mux)
-	postHandler.RegisterRoutes(mux)
-	commentHandler.RegisterRoutes(mux)
+	handler.RegisterUserRoutes(repos.UserRepository, mux)
+	handler.RegisterPostRoutes(repos.PostRepository, mux)
+	handler.RegisterCommentRoutes(repos.CommentRepository, mux)
 
 	return &Server{mux: mux}
 }

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	servererrors "skymates-api/internal/errors"
+	"skymates-api/internal/middleware"
 	"skymates-api/internal/repositories"
 	"skymates-api/internal/types"
 )
@@ -16,14 +17,11 @@ type UserHandler struct {
 	userRepo repositories.UserRepository
 }
 
-func NewUserHandler(us repositories.UserRepository) *UserHandler {
-	return &UserHandler{userRepo: us}
-}
-
-func (h *UserHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/auth/register", h.Register)
-	mux.HandleFunc("/api/auth/login", h.Login)
-	mux.HandleFunc("/api/users/{id}", h.GetUser)
+func RegisterUserRoutes(us repositories.UserRepository, mux *http.ServeMux) {
+	h := &UserHandler{userRepo: us}
+	mux.HandleFunc("/api/auth/register", middleware.Use(h.Register, middleware.Logger, middleware.CORS(nil)))
+	mux.HandleFunc("/api/auth/login", middleware.Use(h.Login, middleware.Logger, middleware.CORS(nil)))
+	mux.HandleFunc("/api/users/{id}", middleware.Use(h.GetUser, middleware.Logger, middleware.CORS(nil), middleware.Auth))
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
