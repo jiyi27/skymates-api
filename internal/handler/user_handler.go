@@ -6,6 +6,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"skymates-api/internal/auth"
 	servererrors "skymates-api/internal/errors"
 	"skymates-api/internal/middleware"
 	"skymates-api/internal/repositories"
@@ -107,7 +108,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jwtToken, err := h.generateJWT(user)
+	jwtToken, err := auth.GenerateJwtToken(user)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 		return

@@ -1,9 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
+	"skymates-api/internal/auth"
 	"strings"
 	"time"
 )
@@ -104,7 +107,6 @@ func CORS(config *CORSConfig) Middleware {
 	}
 }
 
-// Logger 中间件用于记录请求日志
 func Logger(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Print("Logger middleware - start")
@@ -122,17 +124,42 @@ func Logger(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Auth 认证中间件
+type Claims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
+
 func Auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Print("Auth middleware - start")
-		token := r.Header.Get("Authorization")
-		if token == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		// log.Print("Auth middleware - start")
+		authHeaderValue := r.Header.Get("Authorization")
+		if authHeaderValue == "" {
+			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
 			return
 		}
-		// TODO: 实现token验证逻辑
-		next(w, r)
-		log.Print("Auth middleware - end")
+
+		bearerToken := strings.Split(authHeaderValue, " ")
+		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+			return
+		}
+
+		claims, err := auth.ValidateJwtToken(bearerToken[1])
+		if err != nil {
+			switch {
+			case strings.Contains(err.Error(), "signature"):
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+			case strings.Contains(err.Error(), "expired"):
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+			default:
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			}
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "username", claims.Username)
+		next(w, r.WithContext(ctx))
+
+		// log.Print("Auth middleware - end")
 	}
 }
