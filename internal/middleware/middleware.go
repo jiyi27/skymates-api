@@ -50,7 +50,7 @@ func CORS(config *CORSConfig) Middleware {
 
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			log.Print("CORS middleware - start")
+			//log.Print("CORS middleware - start")
 
 			// If Access-Control-Allow-Credentials = true
 			// then Access-Control-Allow-Origin must not use *. Even you set it to *, it will have error.
@@ -102,14 +102,14 @@ func CORS(config *CORSConfig) Middleware {
 
 			next(w, r)
 
-			log.Print("CORS middleware - end")
+			//log.Print("CORS middleware - end")
 		}
 	}
 }
 
 func Logger(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Print("Logger middleware - start")
+		//log.Print("Logger middleware - start")
 
 		start := time.Now()
 		// 在请求结束后打印日, 这里使用 defer 的主要优势在于:
@@ -120,7 +120,7 @@ func Logger(next http.HandlerFunc) http.HandlerFunc {
 
 		next(w, r)
 
-		log.Print("Logger middleware - end")
+		//log.Print("Logger middleware - end")
 	}
 }
 
