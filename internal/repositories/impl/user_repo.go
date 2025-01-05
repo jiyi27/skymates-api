@@ -20,7 +20,7 @@ func NewPostgresUserRepository(pool *pgxpool.Pool) repositories.UserRepository {
 }
 
 func (p *PostgresUserRepository) Create(user *types.User) error {
-	query := `INSERT INTO users (username, password, email, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	query := `INSERT INTO users (username, hashed_password, email, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 
 	err := p.pool.QueryRow(context.Background(), query,
 		user.Username,
@@ -40,7 +40,7 @@ func (p *PostgresUserRepository) Create(user *types.User) error {
 
 func (p *PostgresUserRepository) GetByID(id string) (*types.User, error) {
 	query := `
-	   SELECT id, username, password_hash, email, created_at, updated_at
+	   SELECT id, username, hashed_password, email, created_at, updated_at
 	   FROM users
 	   WHERE id = $1`
 
@@ -70,7 +70,7 @@ func (p *PostgresUserRepository) GetByID(id string) (*types.User, error) {
 
 func (p *PostgresUserRepository) GetByUsername(username string) (*types.User, error) {
 	query := `
-	   SELECT id, username, password_hash, email, created_at, updated_at
+	   SELECT id, username, hashed_password, email, created_at, updated_at
 	   FROM users
 	   WHERE username = $1`
 

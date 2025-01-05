@@ -50,6 +50,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	exists, err := h.userRepo.CheckUsernameExists(req.Username)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+		log.Printf("handler.CreateUser: failed to check username exists: %v", err)
 		return
 	}
 	if exists {
@@ -61,6 +62,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+		log.Printf("handler.CreateUser: failed to hash password: %v", err)
 		return
 	}
 
@@ -77,7 +79,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.ResponseJSON(w, http.StatusCreated, "User created successfully", nil)
+	h.ResponseJSON(w, http.StatusCreated, "User created successfully", user)
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
