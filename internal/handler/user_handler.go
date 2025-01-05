@@ -111,10 +111,12 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 				h.ResponseJSON(w, http.StatusNotFound, "User not found", nil)
 			default:
 				h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+				log.Printf("handler.Login: failed to get user by username: %v", err)
 			}
 		}
 
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		log.Printf("handler.Login: failed to get user by username: %v", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
@@ -125,6 +127,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	jwtToken, err := auth.GenerateJwtToken(user)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		log.Printf("handler.Login: failed to generate jwt token: %v", err)
 		return
 	}
 
