@@ -110,3 +110,16 @@ func (p *PostgresUserRepository) CheckUsernameExists(username string) (bool, err
 
 	return exists, nil
 }
+
+func (p *PostgresUserRepository) CheckEmailExists(email string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
+
+	var exists bool
+	err := p.pool.QueryRow(context.Background(), query, email).Scan(&exists)
+
+	if err != nil {
+		return false, servererrors.NewDatabaseError("repository.User.CheckEmailExists: database error", err)
+	}
+
+	return exists, nil
+}

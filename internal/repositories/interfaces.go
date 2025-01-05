@@ -9,6 +9,7 @@ type UserRepository interface {
 	GetByID(id string) (*types.User, error)
 	GetByUsername(username string) (*types.User, error)
 	CheckUsernameExists(username string) (bool, error)
+	CheckEmailExists(email string) (bool, error)
 }
 
 type PostRepository interface {

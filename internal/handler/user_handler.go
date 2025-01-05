@@ -58,6 +58,18 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if email exists
+	exists, err = h.userRepo.CheckEmailExists(req.Email)
+	if err != nil {
+		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+		log.Printf("handler.CreateUser: failed to check email exists: %v", err)
+		return
+	}
+	if exists {
+		h.ResponseJSON(w, http.StatusConflict, "email already exists", nil)
+		return
+	}
+
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
