@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
@@ -50,7 +49,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	exists, err := h.userRepo.CheckUsernameExists(req.Username)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
-		log.Printf("handler.CreateUser: failed to check username exists: %v", err)
+		log.Printf("UserHandler.CreateUser: failed to check username exists: %v", err)
 		return
 	}
 	if exists {
@@ -62,7 +61,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	exists, err = h.userRepo.CheckEmailExists(req.Email)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
-		log.Printf("handler.CreateUser: failed to check email exists: %v", err)
+		log.Printf("UserHandler.CreateUser: failed to check email exists: %v", err)
 		return
 	}
 	if exists {
@@ -74,7 +73,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
-		log.Printf("handler.CreateUser: failed to hash password: %v", err)
+		log.Printf("UserHandler.CreateUser: failed to hash password: %v", err)
 		return
 	}
 
@@ -87,7 +86,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.userRepo.Create(user); err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
-		log.Printf("handler.CreateUser: failed to create user: %v", err)
+		log.Printf("UserHandler.CreateUser: failed to create user: %v", err)
 		return
 	}
 
@@ -105,18 +104,17 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var serverErr *servererrors.ServerError
 		if errors.As(err, &serverErr) {
-			fmt.Printf("handler.Login: failed to get user by username: %v", err)
 			switch serverErr.Kind {
 			case servererrors.KindNotFound:
 				h.ResponseJSON(w, http.StatusNotFound, "User not found", nil)
 			default:
 				h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
-				log.Printf("handler.Login: failed to get user by username: %v", err)
+				log.Printf("UserHandler.Login: failed to get user by username: %v", err)
 			}
 		}
 
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
-		log.Printf("handler.Login: failed to get user by username: %v", err)
+		log.Printf("UserHandler.Login: failed to get user by username: %v", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
@@ -127,7 +125,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	jwtToken, err := auth.GenerateJwtToken(user)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
-		log.Printf("handler.Login: failed to generate jwt token: %v", err)
+		log.Printf("UserHandler.Login: failed to generate jwt token: %v", err)
 		return
 	}
 

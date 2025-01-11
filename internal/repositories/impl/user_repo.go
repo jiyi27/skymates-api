@@ -31,7 +31,7 @@ func (p *PostgresUserRepository) Create(user *types.User) error {
 	).Scan(&user.ID)
 
 	if err != nil {
-		return servererrors.NewDatabaseError(fmt.Sprintf("repository.User.Create: failed to insert user (username=%s, email=%s)",
+		return servererrors.NewDatabaseError(fmt.Sprintf("PostgresUserRepository.Create: failed to insert user (username=%s, email=%s)",
 			user.Username, user.Email), err)
 	}
 
@@ -60,9 +60,9 @@ func (p *PostgresUserRepository) GetByID(id string) (*types.User, error) {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, servererrors.NewNotFoundError(fmt.Sprintf("repository.User.GetByID: no such user, ID: %v", id), nil)
+			return nil, servererrors.NewNotFoundError(fmt.Sprintf("PostgresUserRepository.GetByID: no such user, ID: %v", id), nil)
 		}
-		return nil, servererrors.NewDatabaseError("repository.User.GetByID: database error", err)
+		return nil, servererrors.NewDatabaseError("PostgresUserRepository.GetByID: database error", err)
 	}
 
 	return user, nil
@@ -90,9 +90,9 @@ func (p *PostgresUserRepository) GetByUsername(username string) (*types.User, er
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, servererrors.NewNotFoundError(fmt.Sprintf("repository.User.GetByUsername: no such user, username: %v", username), nil)
+			return nil, servererrors.NewNotFoundError(fmt.Sprintf("PostgresUserRepository.GetByUsername: no such user, username: %v", username), nil)
 		}
-		return nil, servererrors.NewDatabaseError("repository.User.GetByUsername: database error", err)
+		return nil, servererrors.NewDatabaseError("PostgresUserRepository.GetByUsername: database error", err)
 	}
 
 	return user, nil
@@ -105,7 +105,7 @@ func (p *PostgresUserRepository) CheckUsernameExists(username string) (bool, err
 	err := p.pool.QueryRow(context.Background(), query, username).Scan(&exists)
 
 	if err != nil {
-		return false, servererrors.NewDatabaseError("repository.User.CheckUsernameExists: database error", err)
+		return false, servererrors.NewDatabaseError("PostgresUserRepository.CheckUsernameExists: database error", err)
 	}
 
 	return exists, nil
@@ -118,7 +118,7 @@ func (p *PostgresUserRepository) CheckEmailExists(email string) (bool, error) {
 	err := p.pool.QueryRow(context.Background(), query, email).Scan(&exists)
 
 	if err != nil {
-		return false, servererrors.NewDatabaseError("repository.User.CheckEmailExists: database error", err)
+		return false, servererrors.NewDatabaseError("PostgresUserRepository.CheckEmailExists: database error", err)
 	}
 
 	return exists, nil
