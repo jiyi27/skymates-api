@@ -14,6 +14,7 @@ func NewServer(repos *Repositories) *Server {
 	mux := http.NewServeMux()
 
 	handler.RegisterUserRoutes(repos.UserRepository, mux)
+	handler.RegisterTermRoutes(repos.TermRepository, mux)
 	handler.RegisterPostRoutes(repos.PostRepository, mux)
 	handler.RegisterCommentRoutes(repos.CommentRepository, mux)
 
@@ -26,6 +27,7 @@ func (s *Server) Start(addr string) error {
 
 type Repositories struct {
 	UserRepository    repositories.UserRepository
+	TermRepository    repositories.TermRepository
 	PostRepository    repositories.PostRepository
 	CommentRepository repositories.CommentRepository
 }

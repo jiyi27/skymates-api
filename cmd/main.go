@@ -16,6 +16,7 @@ func main() {
 
 	repos := &server.Repositories{
 		UserRepository:    impl.NewPostgresUserRepository(db),
+		TermRepository:    impl.NewPostgresTermRepository(db),
 		PostRepository:    impl.NewPostgresPostRepository(db),
 		CommentRepository: impl.NewPostgresCommentRepository(db),
 	}
