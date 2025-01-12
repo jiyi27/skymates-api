@@ -77,8 +77,14 @@ func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	var newLastID *uuid.UUID
+	if len(terms) > 0 {
+		newLastID = &terms[len(terms)-1].ID
+	}
+
 	response := types.ListTermsResponse{
 		Terms:   terms,
+		LastID:  newLastID,
 		HasMore: hasMore,
 	}
 

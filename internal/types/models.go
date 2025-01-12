@@ -16,11 +16,15 @@ json:"id" 显然是用于指导 JSON 序列化和反序列化的
 type User struct {
 	ID             uuid.UUID `json:"id"`
 	Username       string    `json:"username"`
-	HashedPassword string    `json:"-"` // 使用 json:"-" 确保不会在 JSON 响应中返回
+	HashedPassword string    `json:"-"` // json:"-" 确保不会在 JSON 响应中返回
 	Email          string    `json:"email"`
-	AvatarUrl      string    `json:"avatar,omitempty"` // 如果字段的值是其类型的零值, 则在 JSON 输出中省略该字段
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	// omitempty 如果字段的值是其类型的零值, 则在 JSON 输出中省略该字段
+	// omitempty 只对序列化有效, 不会对反序列化产生影响
+	// 为了方便客户端处理, 这里我们不使用 omitempty
+	// AvatarUrl string    `json:"avatar_url,omitempty"`
+	AvatarUrl string    `json:"avatar_url"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Term 术语基础信息, 用于列表展示多个术语
@@ -37,8 +41,8 @@ type TermDetail struct {
 	// 如果不使用指针类型, 则会报错, 无法将 NULL 值映射到非指针类型
 	// *string 类型序列化为 JSON 时, 会序列化指针指向的值, 而不是地址
 	TextExplanation *string        `json:"text_explanation"`
-	Source          *string        `json:"source,omitempty"`
-	VideoURL        *string        `json:"video_url,omitempty"`
+	Source          *string        `json:"source"`
+	VideoURL        *string        `json:"video_url"`
 	Categories      []TermCategory `json:"categories"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`

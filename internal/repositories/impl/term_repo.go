@@ -90,6 +90,7 @@ func (p *PostgresTermRepository) ListByCategory(ctx context.Context, categoryID 
 	}
 	defer rows.Close()
 
+	// 长度(len)为 0, 容量(cap)为 limit+1 的切片
 	terms := make([]types.Term, 0, limit+1)
 	for rows.Next() {
 		var term types.Term

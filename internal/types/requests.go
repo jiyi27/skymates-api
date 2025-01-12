@@ -14,8 +14,9 @@ type LoginRequest struct {
 }
 
 type ListTermsRequest struct {
-	LastID *uuid.UUID `json:"last_id,omitempty"` // 上次加载的最后一个ID
-	Limit  int        `json:"limit"`             // 每次加载数量
+	// omitempty 只对序列化有效, 不会对反序列化产生影响
+	LastID *uuid.UUID `json:"last_id"`
+	Limit  int        `json:"limit"`
 }
 
 type CreatePostRequest struct {
