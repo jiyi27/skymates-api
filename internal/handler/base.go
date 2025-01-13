@@ -16,7 +16,7 @@ func (h *BaseHandler) ResponseJSON(w http.ResponseWriter, code int, message stri
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(types.Response{
-		Code:    code,
+		Status:  code,
 		Message: message,
 		Data:    data,
 	}); err != nil {

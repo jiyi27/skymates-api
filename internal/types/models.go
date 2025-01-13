@@ -17,7 +17,7 @@ type User struct {
 	ID             uuid.UUID `json:"id"`
 	Username       string    `json:"username"`
 	HashedPassword string    `json:"-"` // json:"-" 确保不会在 JSON 响应中返回
-	Email          string    `json:"email"`
+	Email          string    `json:"Email"`
 	// omitempty 如果字段的值是其类型的零值, 则在 JSON 输出中省略该字段
 	// omitempty 只对序列化有效, 不会对反序列化产生影响
 	// 为了方便客户端处理, 这里我们不使用 omitempty

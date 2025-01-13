@@ -46,7 +46,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if username exists
-	exists, err := h.userRepo.CheckUsernameExists(req.Username)
+	exists, err := h.userRepo.CheckExists(repositories.QueryByUsername, req.Username)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
 		log.Printf("UserHandler.CreateUser: failed to check username exists: %v", err)
@@ -58,7 +58,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if email exists
-	exists, err = h.userRepo.CheckEmailExists(req.Email)
+	exists, err = h.userRepo.CheckExists(repositories.QueryByEmail, req.Email)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
 		log.Printf("UserHandler.CreateUser: failed to check email exists: %v", err)
@@ -100,7 +100,12 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userRepo.GetByUsername(req.Username)
+	if req.Email == "" || req.Password == "" {
+		h.ResponseJSON(w, http.StatusBadRequest, "email and password are required", nil)
+		return
+	}
+
+	user, err := h.userRepo.GetUserBy(repositories.QueryByEmail, req.Email)
 	if err != nil {
 		var serverErr *servererrors.ServerError
 		if errors.As(err, &serverErr) {
@@ -109,12 +114,14 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 				h.ResponseJSON(w, http.StatusNotFound, "User not found", nil)
 			default:
 				h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
-				log.Printf("UserHandler.Login: failed to get user by username: %v", err)
+				log.Printf("UserHandler.Login: failed to get user by email: %v", err)
 			}
+			return
 		}
 
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
-		log.Printf("UserHandler.Login: failed to get user by username: %v", err)
+		log.Printf("UserHandler.Login: failed to get user by email: %v", err)
+		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {

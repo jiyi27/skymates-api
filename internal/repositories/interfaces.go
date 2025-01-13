@@ -6,12 +6,18 @@ import (
 	"skymates-api/internal/types"
 )
 
+type QueryField string
+
+const (
+	QueryByID       QueryField = "id"
+	QueryByUsername QueryField = "username"
+	QueryByEmail    QueryField = "email"
+)
+
 type UserRepository interface {
 	Create(user *types.User) error
-	GetByID(id string) (*types.User, error)
-	GetByUsername(username string) (*types.User, error)
-	CheckUsernameExists(username string) (bool, error)
-	CheckEmailExists(email string) (bool, error)
+	GetUserBy(field QueryField, value string) (*types.User, error)
+	CheckExists(field QueryField, value string) (bool, error)
 }
 
 type TermRepository interface {

@@ -3,7 +3,7 @@ package types
 import "github.com/google/uuid"
 
 type Response struct {
-	Code    int         `json:"code"`
+	Status  int         `json:"status"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }

@@ -38,87 +38,50 @@ func (p *PostgresUserRepository) Create(user *types.User) error {
 	return nil
 }
 
-func (p *PostgresUserRepository) GetByID(id string) (*types.User, error) {
+// GetUserBy 通用查询函数
+func (p *PostgresUserRepository) GetUserBy(field repositories.QueryField, value string) (*types.User, error) {
+	// 构建查询语句
 	query := `
-	   SELECT id, username, hashed_password, email, created_at, updated_at
-	   FROM users
-	   WHERE id = $1`
+        SELECT id, username, hashed_password, email
+        FROM users
+        WHERE ` + string(field) + ` = $1`
 
 	user := &types.User{}
 	err := p.pool.QueryRow(
 		context.Background(),
 		query,
-		id,
+		value,
 	).Scan(
 		&user.ID,
 		&user.Username,
 		&user.HashedPassword,
 		&user.Email,
-		&user.CreatedAt,
-		&user.UpdatedAt,
 	)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, servererrors.NewNotFoundError(fmt.Sprintf("PostgresUserRepository.GetByID: no such user, ID: %v", id), nil)
+			return nil, servererrors.NewNotFoundError(
+				fmt.Sprintf("PostgresUserRepository.GetUserBy: no such user, %s: %v", field, value),
+				nil,
+			)
 		}
-		return nil, servererrors.NewDatabaseError("PostgresUserRepository.GetByID: database error", err)
+		return nil, servererrors.NewDatabaseError("PostgresUserRepository.GetUserBy: database error", err)
 	}
 
 	return user, nil
 }
 
-func (p *PostgresUserRepository) GetByUsername(username string) (*types.User, error) {
-	query := `
-	   SELECT id, username, hashed_password, email, created_at, updated_at
-	   FROM users
-	   WHERE username = $1`
-
-	user := &types.User{}
-	err := p.pool.QueryRow(
-		context.Background(),
-		query,
-		username,
-	).Scan(
-		&user.ID,
-		&user.Username,
-		&user.HashedPassword,
-		&user.Email,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, servererrors.NewNotFoundError(fmt.Sprintf("PostgresUserRepository.GetByUsername: no such user, username: %v", username), nil)
-		}
-		return nil, servererrors.NewDatabaseError("PostgresUserRepository.GetByUsername: database error", err)
-	}
-
-	return user, nil
-}
-
-func (p *PostgresUserRepository) CheckUsernameExists(username string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)`
+func (p *PostgresUserRepository) CheckExists(field repositories.QueryField, value string) (bool, error) {
+	query := fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM users WHERE %s = $1)`, field)
 
 	var exists bool
-	err := p.pool.QueryRow(context.Background(), query, username).Scan(&exists)
+	err := p.pool.QueryRow(context.Background(), query, value).Scan(&exists)
 
 	if err != nil {
-		return false, servererrors.NewDatabaseError("PostgresUserRepository.CheckUsernameExists: database error", err)
-	}
-
-	return exists, nil
-}
-
-func (p *PostgresUserRepository) CheckEmailExists(email string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
-
-	var exists bool
-	err := p.pool.QueryRow(context.Background(), query, email).Scan(&exists)
-
-	if err != nil {
-		return false, servererrors.NewDatabaseError("PostgresUserRepository.CheckEmailExists: database error", err)
+		return false, servererrors.NewDatabaseError(
+			fmt.Sprintf("PostgresUserRepository.CheckExists: database error when checking %s", field),
+			err,
+		)
 	}
 
 	return exists, nil
