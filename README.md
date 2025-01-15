@@ -53,7 +53,6 @@ All API responses follow a standard format:
 
 ```go
 type Response struct {
-  Code    int         `json:"code"`    // HTTP status code
   Message string      `json:"message"` // Response message
   Data    interface{} `json:"data"`    // Response payload
 }
@@ -62,7 +61,6 @@ type Response struct {
 Example successful response:
 ```json
 {
-  "code": 200,
   "message": "Success",
   "data": {
     "id": 1,
@@ -75,7 +73,6 @@ Example error response:
 
 ```json
 {
-  "code": 400,
   "message": "Bad Request",
   "data": null
 }
