@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// TokenExpiry is the duration of the token, 24 hours
+const TokenExpiry = 24 * time.Hour
+
 // Claims 是 JWT Payload 部分, 明文的, 不要存储敏感信息
 // JWT 的结构: 1. Header: 描述签名算法(如 HS256)
 // 2. Payload: 存储 Claims 信息
@@ -19,7 +22,7 @@ type Claims struct {
 }
 
 func GenerateJwtToken(user *types.User) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(TokenExpiry)
 
 	claims := &Claims{
 		Username: user.Username,

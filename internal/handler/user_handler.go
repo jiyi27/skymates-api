@@ -136,6 +136,18 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//// 添加响应头 Set-Cookie 字段, 还未发送, 只是设置了响应头
+	//// If you are setting SameSite=None it must always be Secure = True.
+	//// If you do not set Secure, the cookie will be rejected by the browser.
+	//http.SetCookie(w, &http.Cookie{
+	//	Name:     "token",
+	//	Value:    jwtToken,
+	//	Expires:  time.Now().Add(24 * time.Hour),
+	//	HttpOnly: true,                  // 禁止客户端通过 js 访问 cookie
+	//	Secure:   true,                  // 仅在 https 下发送 cookie
+	//	SameSite: http.SameSiteNoneMode, // 允许跨域发送 cookie
+	//})
+
 	h.ResponseJSON(w, http.StatusOK, "Login successful", map[string]string{"token": jwtToken})
 }
 
