@@ -148,7 +148,8 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	//	SameSite: http.SameSiteNoneMode, // 允许跨域发送 cookie
 	//})
 
-	h.ResponseJSON(w, http.StatusOK, "Login successful", map[string]string{"token": jwtToken})
+	data := map[string]interface{}{"token": jwtToken, "user": user}
+	h.ResponseJSON(w, http.StatusOK, "Login successful", data)
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
