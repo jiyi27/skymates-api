@@ -24,6 +24,7 @@ type TermRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*types.TermDetail, error)
 	ListByCategory(ctx context.Context, categoryID uuid.UUID, lastID *uuid.UUID, limit int) ([]types.Term, bool, error)
 	GetCategoryTermCount(ctx context.Context, categoryID uuid.UUID) (int, error)
+	GetSuggestions(ctx context.Context, query string) ([]types.Term, error)
 }
 
 type PostRepository interface {

@@ -39,9 +39,20 @@ func CORS(config *CORSConfig) Middleware {
 	if config == nil {
 		config = &CORSConfig{
 			// 源是协议(http/https)+域名+端口, 不是用户的 IP
-			AllowOrigins:     []string{"http://localhost:3000"},
-			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-			AllowHeaders:     []string{"*"},
+			AllowOrigins: []string{"http://localhost:3000", "http://127.0.0.1:3000"},
+			AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+			// 不要使用 Access-Control-Allow-Headers: *
+			// 看起来是允许所有 header，但在某些浏览器中，
+			// 当 credentials: 'include' 或 withCredentials: true 时，通配符 * 可能不会被正确解析
+			AllowHeaders: []string{
+				"Content-Type",
+				"Authorization",
+				"X-Requested-With",
+				"Accept",
+				"Origin",
+				"Access-Control-Request-Method",
+				"Access-Control-Request-Headers",
+			},
 			ExposeHeaders:    []string{},
 			AllowCredentials: true,
 			MaxAge:           86400,
@@ -50,7 +61,8 @@ func CORS(config *CORSConfig) Middleware {
 
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			//log.Print("CORS middleware - start")
+			log.Print("CORS middleware - start")
+			log.Printf("Origin: %s", r.Header.Get("Origin"))
 
 			// If Access-Control-Allow-Credentials = true
 			// then Access-Control-Allow-Origin must not use *. Even you set it to *, it will have error.

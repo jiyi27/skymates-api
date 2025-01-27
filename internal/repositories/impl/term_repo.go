@@ -20,6 +20,54 @@ func NewPostgresTermRepository(pool *pgxpool.Pool) repositories.TermRepository {
 	return &PostgresTermRepository{pool: pool}
 }
 
+func (p *PostgresTermRepository) GetSuggestions(ctx context.Context, query string) ([]types.Term, error) {
+	// 基本的 SQL 查询，使用 ILIKE 进行不区分大小写的模糊匹配
+	const sql = `
+        SELECT id, name 
+        FROM terms 
+        WHERE name ILIKE $1 
+        ORDER BY 
+            CASE 
+                -- 完全匹配放在最前面
+                WHEN name ILIKE $2 THEN 1
+                -- 前缀匹配其次
+                WHEN name ILIKE $3 THEN 2
+                -- 包含匹配最后
+                ELSE 3 
+            END,
+            length(name) -- 更短的名称优先
+        LIMIT 10`
+
+	// 构建搜索模式
+	exactPattern := query
+	prefixPattern := query + "%"
+	containsPattern := "%" + query + "%"
+
+	// 执行查询
+	rows, err := p.pool.Query(ctx, sql, containsPattern, exactPattern, prefixPattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query suggestions: %w", err)
+	}
+	defer rows.Close()
+
+	// 解析结果
+	var suggestions []types.Term
+	for rows.Next() {
+		var term types.Term
+		if err := rows.Scan(&term.ID, &term.Name); err != nil {
+			return nil, fmt.Errorf("failed to scan term: %w", err)
+		}
+		suggestions = append(suggestions, term)
+	}
+
+	// 检查迭代过程中是否有错误
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return suggestions, nil
+}
+
 func (p *PostgresTermRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.TermDetail, error) {
 	query := `
 		SELECT t.id, t.name, t.text_explanation, t.source, t.video_url, t.created_at, t.updated_at,
