@@ -36,16 +36,16 @@ type Term struct {
 // TermDetail 术语详细信息, 用于详情展示
 type TermDetail struct {
 	Term
-	// source, video_url, text_explanation 在数据库的定义都是可选(nullable)字段, 所以使用指针类型
+	// source, video_url, explanation 在数据库的定义都是可选(nullable)字段, 所以使用指针类型
 	// 使用指针类型, 使其可以被被赋值为 nil, 因为在数据库查询时, PostgreSQL 的 NULL 值会自动映射到 Go 的指针类型的 nil
 	// 如果不使用指针类型, 则会报错, 无法将 NULL 值映射到非指针类型
 	// *string 类型序列化为 JSON 时, 会序列化指针指向的值, 而不是地址
-	TextExplanation *string        `json:"text_explanation"`
-	Source          *string        `json:"source"`
-	VideoURL        *string        `json:"video_url"`
-	Categories      []TermCategory `json:"categories"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	Explanation *string        `json:"explanation"`
+	Source      *string        `json:"source"`
+	VideoURL    *string        `json:"video_url"`
+	Categories  []TermCategory `json:"categories"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
 type TermCategory struct {

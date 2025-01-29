@@ -39,7 +39,7 @@ func CORS(config *CORSConfig) Middleware {
 	if config == nil {
 		config = &CORSConfig{
 			// 源是协议(http/https)+域名+端口, 不是用户的 IP
-			AllowOrigins: []string{"http://localhost:3000", "http://127.0.0.1:3000"},
+			AllowOrigins: []string{"http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.2.46:3000"},
 			AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 			// 不要使用 Access-Control-Allow-Headers: *
 			// 看起来是允许所有 header，但在某些浏览器中，

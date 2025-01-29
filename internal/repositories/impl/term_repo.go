@@ -36,7 +36,7 @@ func (p *PostgresTermRepository) GetSuggestions(ctx context.Context, query strin
                 ELSE 3 
             END,
             length(name) -- 更短的名称优先
-        LIMIT 10`
+        LIMIT 20`
 
 	// 构建搜索模式
 	exactPattern := query
@@ -70,7 +70,7 @@ func (p *PostgresTermRepository) GetSuggestions(ctx context.Context, query strin
 
 func (p *PostgresTermRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.TermDetail, error) {
 	query := `
-		SELECT t.id, t.name, t.text_explanation, t.source, t.video_url, t.created_at, t.updated_at,
+		SELECT t.id, t.name, t.explanation, t.source, t.video_url, t.created_at, t.updated_at,
 		       -- COALESCE 确保在没有分类时返回空数组而不是NULL
 			   COALESCE(
 			       -- postgresql json_agg() 聚合函数用于将行转换为 JSON 数组, 必须在 GROUP BY 子句中使用
@@ -84,9 +84,9 @@ func (p *PostgresTermRepository) GetByID(ctx context.Context, id uuid.UUID) (*ty
 		LEFT JOIN term_categories c ON tcr.category_id = c.id
 		WHERE t.id = $1
 		-- 在 GROUP BY 之前, 得到的是每个分类的单独行, 即一个分类对应一行
-		-- GROUP BY 之后, 将 t.id, t.name, t.text_explanation 等值相同的行合并为一行, 
+		-- GROUP BY 之后, 将 t.id, t.name, t.explanation 等值相同的行合并为一行, 
 		-- 此时 categories 自然就是一个数组了, categories 是上面 SELECT 中的别名
-		GROUP BY t.id, t.name, t.text_explanation, t.source, t.video_url,
+		GROUP BY t.id, t.name, t.explanation, t.source, t.video_url,
 				 t.created_at, t.updated_at`
 
 	// 执行 Query 语句
@@ -94,7 +94,7 @@ func (p *PostgresTermRepository) GetByID(ctx context.Context, id uuid.UUID) (*ty
 	err := p.pool.QueryRow(ctx, query, id).Scan(
 		&term.ID,
 		&term.Name,
-		&term.TextExplanation,
+		&term.Explanation,
 		&term.Source,
 		&term.VideoURL,
 		&term.CreatedAt,
