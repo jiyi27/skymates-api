@@ -9,6 +9,8 @@ import (
 	"skymates-api/internal/middleware"
 	"skymates-api/internal/repositories"
 	"skymates-api/internal/types"
+	"strconv"
+	"time"
 )
 
 type TermHandler struct {
@@ -22,11 +24,11 @@ func RegisterTermRoutes(tr repositories.TermRepository, mux *http.ServeMux) {
 	// 如果 /api/terms/{id} 会覆盖 /api/terms/suggestions, 那按理说依然不应该出现 OPTIONS 请求得不到响应的情况, 因为都用到了 middleware.CORS(nil)
 	mux.HandleFunc("/api/term/{id}", middleware.Use(h.GetTermDetail, middleware.Logger, middleware.CORS(nil)))
 	mux.HandleFunc("/api/terms/suggestions", middleware.Use(h.GetTermSuggestions, middleware.Logger, middleware.CORS(nil)))
-
-	mux.HandleFunc("/api/categories/{categoryId}/terms", middleware.Use(h.ListTermsByCategory, middleware.Logger, middleware.CORS(nil)))
+	mux.HandleFunc("/api/terms", middleware.Use(h.ListTermsByCategory, middleware.Logger, middleware.CORS(nil)))
 }
 
 func (h *TermHandler) GetTermSuggestions(w http.ResponseWriter, r *http.Request) {
+	// 当 query string 中没有 query 时, 会返回空字符串
 	query := r.URL.Query().Get("query")
 	if query == "" {
 		http.Error(w, "Missing search query", http.StatusBadRequest)
@@ -73,24 +75,44 @@ func (h *TermHandler) GetTermDetail(w http.ResponseWriter, r *http.Request) {
 
 // ListTermsByCategory 获取分类下的术语列表
 func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request) {
-	categoryID, err := uuid.Parse(r.PathValue("categoryId"))
+	// 睡眠 3 秒
+	time.Sleep(3 * time.Second)
+
+	categoryId, err := uuid.Parse(r.URL.Query().Get("categoryId"))
 	if err != nil {
 		h.ResponseJSON(w, http.StatusBadRequest, "Invalid category ID", nil)
 		return
 	}
 
-	var req types.ListTermsRequest
-	if err := h.DecodeJSON(r, &req); err != nil {
-		h.ResponseJSON(w, http.StatusBadRequest, "Invalid request format", nil)
-		return
+	// 当 query string 中没有 last_id 时, 会返回空字符串
+	// 当 last_id 为空时, lastID 为 nil
+	lastIDStr := r.URL.Query().Get("last_id")
+	var lastID *uuid.UUID
+	if lastIDStr != "" {
+		parsedID, err := uuid.Parse(lastIDStr)
+		if err != nil {
+			h.ResponseJSON(w, http.StatusBadRequest, "Invalid last_id format", nil)
+			return
+		}
+		lastID = &parsedID
 	}
 
-	// 验证并设置limit
-	if req.Limit <= 0 || req.Limit > 50 {
-		req.Limit = 20
+	limitStr := r.URL.Query().Get("limit")
+	limit := 20 // 默认值
+	if limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil || parsedLimit <= 0 {
+			h.ResponseJSON(w, http.StatusBadRequest, "Invalid limit value", nil)
+			return
+		}
+		if parsedLimit > 50 {
+			limit = 50
+		} else {
+			limit = parsedLimit
+		}
 	}
 
-	terms, hasMore, err := h.termRepo.ListByCategory(r.Context(), categoryID, req.LastID, req.Limit)
+	terms, hasMore, err := h.termRepo.ListByCategory(r.Context(), categoryId, lastID, limit)
 	if err != nil {
 		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 		log.Printf("TermHandler.ListTermsByCategory: failed to list terms: %v", err)
