@@ -10,7 +10,6 @@ import (
 	"skymates-api/internal/repositories"
 	"skymates-api/internal/types"
 	"strconv"
-	"time"
 )
 
 type TermHandler struct {
@@ -75,9 +74,6 @@ func (h *TermHandler) GetTermDetail(w http.ResponseWriter, r *http.Request) {
 
 // ListTermsByCategory 获取分类下的术语列表
 func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request) {
-	// 睡眠 3 秒
-	time.Sleep(3 * time.Second)
-
 	categoryId, err := uuid.Parse(r.URL.Query().Get("categoryId"))
 	if err != nil {
 		h.ResponseJSON(w, http.StatusBadRequest, "Invalid category ID", nil)
