@@ -31,45 +31,40 @@ func NewUserService(userRepository repository.UserRepository) UserService {
 
 // Register 处理用户注册业务逻辑
 // 成功时返回创建的用户，失败时返回错误
+// user_service.go
 func (s *userService) Register(req v1.RegisterDto) (*model.User, error) {
-	// 检查用户名是否存在
 	exists, err := s.userRepository.CheckExists(repository.QueryByUsername, req.Username)
 	if err != nil {
 		log.Printf("UserService.Register: failed to check username exists: %v", err)
-		return nil, errors.New("internal server error")
+		return nil, servererrors.NewInternalError("检查用户名是否存在失败", err)
 	}
 	if exists {
-		return nil, errors.New("username already exists")
+		return nil, servererrors.NewAlreadyExistsError("用户名已存在", nil)
 	}
 
-	// 检查邮箱是否存在
 	exists, err = s.userRepository.CheckExists(repository.QueryByEmail, req.Email)
 	if err != nil {
 		log.Printf("UserService.Register: failed to check email exists: %v", err)
-		return nil, errors.New("internal server error")
+		return nil, servererrors.NewInternalError("检查邮箱是否存在失败", err)
 	}
 	if exists {
-		return nil, errors.New("email already exists")
+		return nil, servererrors.NewAlreadyExistsError("邮箱已存在", nil)
 	}
 
-	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("UserService.Register: failed to hash password: %v", err)
-		return nil, errors.New("internal server error")
+		return nil, servererrors.NewInternalError("密码加密失败", err)
 	}
 
-	// 创建用户
 	user := &model.User{
 		Username:       req.Username,
 		HashedPassword: string(hashedPassword),
 		Email:          req.Email,
 	}
-
-	// 保存用户到数据库
 	if err := s.userRepository.Create(user); err != nil {
 		log.Printf("UserService.Register: failed to create user: %v", err)
-		return nil, errors.New("internal server error")
+		return nil, servererrors.NewInternalError("创建用户失败", err)
 	}
 
 	return user, nil
@@ -78,29 +73,30 @@ func (s *userService) Register(req v1.RegisterDto) (*model.User, error) {
 // Login 处理用户登录业务逻辑
 // 成功时返回用户信息和JWT令牌，失败时返回错误
 func (s *userService) Login(req v1.LoginDto) (*model.User, string, error) {
-	// 查询用户
+	// 1. 查询用户
 	user, err := s.userRepository.GetUserBy(repository.QueryByEmail, req.Email)
 	if err != nil {
-		var serverErr *servererrors.ServerError
-		if errors.As(err, &serverErr) {
-			if serverErr.Kind == servererrors.KindNotFound {
-				return nil, "", errors.New("user not found")
-			}
+		// 如果是未找到，映射成 NotFoundError
+		var se *servererrors.ServerError
+		if errors.As(err, &se) && se.Kind == servererrors.KindNotFound {
+			return nil, "", servererrors.NewNotFoundError("用户不存在", nil)
 		}
+		// 其他视为内部错误
 		log.Printf("UserService.Login: failed to get user by email: %v", err)
-		return nil, "", errors.New("internal server error")
+		return nil, "", servererrors.NewInternalError("获取用户失败", err)
 	}
 
-	// 验证密码
+	// 2. 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
-		return nil, "", errors.New("invalid credentials")
+		// 密码不匹配当作 Unauthorized
+		return nil, "", servererrors.NewUnauthorizedError("凭证无效", nil)
 	}
 
-	// 生成JWT令牌
+	// 3. 生成 JWT
 	jwtToken, err := auth.GenerateJwtToken(user)
 	if err != nil {
 		log.Printf("UserService.Login: failed to generate jwt token: %v", err)
-		return nil, "", errors.New("internal server error")
+		return nil, "", servererrors.NewInternalError("生成令牌失败", err)
 	}
 
 	return user, jwtToken, nil
