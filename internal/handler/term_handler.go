@@ -19,7 +19,7 @@ type TermHandler struct {
 
 func RegisterTermRoutes(tr repositories.TermRepository, mux *http.ServeMux) {
 	h := &TermHandler{termRepo: tr}
-	//TODO: 为什么没有 匹配 OPTIONS 方法的路由, 却可以在前端发送 OPTIONS 请求并得到响应??
+	// TODO: 为什么没有 匹配 OPTIONS 方法的路由, 却可以在前端发送 OPTIONS 请求并得到响应??
 	// 如果 /api/terms/{id} 会覆盖 /api/terms/suggestions, 那按理说依然不应该出现 OPTIONS 请求得不到响应的情况, 因为都用到了 middleware.CORS(nil)
 	mux.HandleFunc("/api/term/{id}", middleware.Use(h.GetTermDetail, middleware.Logger, middleware.CORS(nil)))
 	mux.HandleFunc("/api/terms/suggestions", middleware.Use(h.GetTermSuggestions, middleware.Logger, middleware.CORS(nil)))
@@ -40,13 +40,13 @@ func (h *TermHandler) GetTermSuggestions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.ResponseJSON(w, http.StatusOK, "Success", suggestions)
+	h.SendJSON(w, http.StatusOK, "Success", suggestions)
 }
 
 func (h *TermHandler) GetTermDetail(w http.ResponseWriter, r *http.Request) {
 	termID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		h.ResponseJSON(w, http.StatusBadRequest, "Invalid term ID", nil)
+		h.SendJSON(w, http.StatusBadRequest, "Invalid term ID", nil)
 		return
 	}
 
@@ -56,27 +56,27 @@ func (h *TermHandler) GetTermDetail(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &serverErr) {
 			switch serverErr.Kind {
 			case servererrors.KindNotFound:
-				h.ResponseJSON(w, http.StatusNotFound, "Term not found", nil)
+				h.SendJSON(w, http.StatusNotFound, "Term not found", nil)
 			default:
-				h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+				h.SendJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 				log.Printf("TermHandler.GetTermDetail: failed to get term: %v", err)
 			}
 			return
 		}
 
-		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		h.SendJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 		log.Printf("TermHandler.GetTermDetail: failed to get term: %v", err)
 		return
 	}
 
-	h.ResponseJSON(w, http.StatusOK, "Success", term)
+	h.SendJSON(w, http.StatusOK, "Success", term)
 }
 
 // ListTermsByCategory 获取分类下的术语列表
 func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request) {
 	categoryId, err := uuid.Parse(r.URL.Query().Get("categoryId"))
 	if err != nil {
-		h.ResponseJSON(w, http.StatusBadRequest, "Invalid category ID", nil)
+		h.SendJSON(w, http.StatusBadRequest, "Invalid category ID", nil)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request
 	if lastIDStr != "" {
 		parsedID, err := uuid.Parse(lastIDStr)
 		if err != nil {
-			h.ResponseJSON(w, http.StatusBadRequest, "Invalid last_id format", nil)
+			h.SendJSON(w, http.StatusBadRequest, "Invalid last_id format", nil)
 			return
 		}
 		lastID = &parsedID
@@ -98,7 +98,7 @@ func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request
 	if limitStr != "" {
 		parsedLimit, err := strconv.Atoi(limitStr)
 		if err != nil || parsedLimit <= 0 {
-			h.ResponseJSON(w, http.StatusBadRequest, "Invalid limit value", nil)
+			h.SendJSON(w, http.StatusBadRequest, "Invalid limit value", nil)
 			return
 		}
 		if parsedLimit > 50 {
@@ -110,7 +110,7 @@ func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request
 
 	terms, hasMore, err := h.termRepo.ListByCategory(r.Context(), categoryId, lastID, limit)
 	if err != nil {
-		h.ResponseJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		h.SendJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 		log.Printf("TermHandler.ListTermsByCategory: failed to list terms: %v", err)
 		return
 	}
@@ -126,5 +126,5 @@ func (h *TermHandler) ListTermsByCategory(w http.ResponseWriter, r *http.Request
 		HasMore: hasMore,
 	}
 
-	h.ResponseJSON(w, http.StatusOK, "Success", response)
+	h.SendJSON(w, http.StatusOK, "Success", response)
 }

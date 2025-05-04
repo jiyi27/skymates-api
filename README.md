@@ -1,5 +1,10 @@
 # skymates-api
 
+-[ ] 添加 Service 层, Handler - Service - Repository
+-[ ] Handler 负责参数校验, Service 负责业务逻辑和 Repository 交互
+-[ ] 如何优雅的判断前端传来的参数是否合法, 在 Base Handler ReadJSON 函数中还是在 Handler 中
+-[ ] 如何利用定义好的错误类, 更优雅的处理错误, errors/errors.go
+
 ## Getting Started
 
 ### Prerequisites
