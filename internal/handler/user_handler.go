@@ -1,96 +1,116 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
-	servererrors "skymates-api/errors"
-	"skymates-api/internal/dto/v1"
+	serverErrors "skymates-api/errors"
+	v1 "skymates-api/internal/dto/v1"
 	"skymates-api/internal/service"
-	"skymates-api/internal/validator"
 )
 
-// UserHandler 处理用户相关的 HTTP 请求
+// UserHandler 用户处理器
 type UserHandler struct {
 	BaseHandler
 	userService service.UserService
 }
 
-// NewUserHandler 创建 UserHandler 实例
+// NewUserHandler 创建用户处理器
 func NewUserHandler(userService service.UserService) *UserHandler {
 	return &UserHandler{
-		BaseHandler: BaseHandler{},
 		userService: userService,
 	}
 }
 
-// Register 处理用户注册请求
+// Register 处理用户注册
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.ResponseJSON(w, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+
 	var req v1.RegisterDto
-	if err := h.ReadJSON(r, &req); err != nil {
-		h.SendJSON(w, http.StatusBadRequest, "无效的请求格式，可能传递了未知字段", nil)
+	if err := h.DecodeJSON(r, &req); err != nil {
+		h.ResponseJSON(w, http.StatusBadRequest, "invalid request format", nil)
 		return
 	}
 
-	// 验证结构体
-	if errMsg, err := validator.ValidateRequest(req); err != nil {
-		h.SendJSON(w, http.StatusBadRequest, errMsg, nil)
+	// 基本验证
+	if len(req.Username) < 3 {
+		h.ResponseJSON(w, http.StatusBadRequest, "username must be at least 3 characters", nil)
+		return
+	}
+	if len(req.Password) < 6 {
+		h.ResponseJSON(w, http.StatusBadRequest, "password must be at least 6 characters", nil)
+		return
+	}
+	if !h.ValidateEmail(req.Email) {
+		h.ResponseJSON(w, http.StatusBadRequest, "invalid email", nil)
 		return
 	}
 
+	// 调用服务层注册用户
 	user, err := h.userService.Register(req)
 	if err != nil {
-		// 统一用 HTTPStatus 映射
-		status := servererrors.HTTPStatus(err)
-		// 5xx 记日志
-		if status >= 500 {
-			log.Printf("UserHandler.Register: %v", err)
+		var serverErr *serverErrors.ServerError
+		if errors.As(err, &serverErr) {
+			switch serverErr.Kind {
+			case serverErrors.KindValidation:
+				h.ResponseJSON(w, http.StatusConflict, serverErr.Message, nil)
+			default:
+				h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+				log.Printf("UserHandler.Register: %v", err)
+			}
+			return
 		}
-		h.SendJSON(w, status, err.Error(), nil)
+
+		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+		log.Printf("UserHandler.Register: %v", err)
 		return
 	}
 
-	h.SendJSON(w, http.StatusCreated, "用户创建成功", user)
+	h.ResponseJSON(w, http.StatusCreated, "user created successfully", user)
 }
 
-// Login 处理用户登录请求
+// Login 处理用户登录
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req v1.LoginDto
-	if err := h.ReadJSON(r, &req); err != nil {
-		h.SendJSON(w, http.StatusBadRequest, "无效的请求格式", nil)
+	if r.Method != http.MethodPost {
+		h.ResponseJSON(w, http.StatusMethodNotAllowed, "method not allowed", nil)
 		return
 	}
 
-	// 验证结构体
-	if errMsg, err := validator.ValidateRequest(req); err != nil {
-		h.SendJSON(w, http.StatusBadRequest, errMsg, nil)
+	var req v1.LoginDto
+	if err := h.DecodeJSON(r, &req); err != nil {
+		h.ResponseJSON(w, http.StatusBadRequest, "invalid request format", nil)
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		h.ResponseJSON(w, http.StatusBadRequest, "email and password are required", nil)
 		return
 	}
 
 	user, token, err := h.userService.Login(req)
 	if err != nil {
-		status := servererrors.HTTPStatus(err)
-		if status >= 500 {
-			log.Printf("UserHandler.Login: %v", err)
+		var serverErr *serverErrors.ServerError
+		if errors.As(err, &serverErr) {
+			switch serverErr.Kind {
+			case serverErrors.KindNotFound:
+				h.ResponseJSON(w, http.StatusNotFound, "user not found", nil)
+			case serverErrors.KindUnauthorized:
+				h.ResponseJSON(w, http.StatusUnauthorized, "invalid credentials", nil)
+			default:
+				h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+				log.Printf("UserHandler.Login: %v", err)
+			}
+			return
 		}
-		h.SendJSON(w, status, err.Error(), nil)
+
+		h.ResponseJSON(w, http.StatusInternalServerError, "internal server error", nil)
+		log.Printf("UserHandler.Login: %v", err)
 		return
 	}
 
-	//// 调用 http.SetCookie 函数，只是设置响应头部中的 Set-Cookie 字段，还没有真的把响应发送出去
-	//// 当你把 Cookie 的 SameSite 设置为 None（表示可以跨站发送）时，必须把 Secure 设置为 true
-	//// 否则，现代浏览器（例如 Chrome）会拒绝这个 Cookie，不会保存
-	//http.SetCookie(w, &http.Cookie{
-	//	Name:     "token",
-	//	Value:    token,
-	//	Expires:  time.Now().Add(24 * time.Hour),
-	//	HttpOnly: true,                  // 禁止客户端通过 js 访问 cookie
-	//	Secure:   true,                  // 仅在 https 下发送 cookie
-	//	SameSite: http.SameSiteNoneMode, // 允许跨域发送 cookie
-	//})
-
-	data := map[string]interface{}{
-		"token": token,
-		"user":  user,
-	}
-	h.SendJSON(w, http.StatusOK, "登录成功", data)
+	data := map[string]interface{}{"token": token, "user": user}
+	h.ResponseJSON(w, http.StatusOK, "login successful", data)
 }

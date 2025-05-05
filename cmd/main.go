@@ -1,45 +1,40 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	v1 "skymates-api/api/v1"
+	"skymates-api/internal/repository"
+	"skymates-api/internal/service"
 	"skymates-api/pkg/middleware"
 )
 
 func main() {
-	//db, err := impl.NewPostgresDB()
-	//if err != nil {
-	//	log.Fatal("init database failed: ", err)
-	//}
-	//defer db.Close()
-	//
-	//userRepo := impl.NewPostgresUserRepository(db)
-	//services := &service.Services{UserService: service.NewUserService(userRepo)}
-	
-	router := http.NewServeMux()
-	v1.RegisterRoutes(router, nil)
+	// 1. 初始化数据库连接
+	db, err := repository.NewMySQLDatabase()
+	if err != nil {
+		log.Fatal("init database failed: ", err)
+	}
 
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Fatal("close database failed: ", err)
+		}
+	}(db)
+
+	// 2. 初始化仓库
+	userRepository := repository.NewUserRepository(db)
+	services := &service.Services{UserService: service.NewUserService(userRepository)}
+
+	// 3. 创建 HTTP 路由
+	router := http.NewServeMux()
+	v1.RegisterRoutes(router, services)
+
+	// 4. 添加中间件
 	handler := addGlobalMiddlewares(router)
 	log.Fatal(http.ListenAndServe(":8080", handler))
-
-	//log.Print("Starting server...")
-	//db, err := impl.NewPostgresDB()
-	//if err != nil {
-	//	log.Fatal("init database failed: ", err)
-	//}
-	//defer db.Close()
-	//
-	//repos := &server.Repositories{
-	//	UserRepository:    impl.NewPostgresUserRepository(db),
-	//	TermRepository:    impl.NewPostgresTermRepository(db),
-	//	PostRepository:    impl.NewPostgresPostRepository(db),
-	//	CommentRepository: impl.NewPostgresCommentRepository(db),
-	//}
-	//
-	//srv := server.NewServer(repos)
-	//log.Print("Server started at :8080")
-	//log.Fatal(srv.Start(":8080"))
 }
 
 func addGlobalMiddlewares(handler http.Handler) http.Handler {

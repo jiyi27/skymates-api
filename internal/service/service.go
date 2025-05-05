@@ -7,11 +7,11 @@ type Services struct {
 }
 
 func NewServices(
-	userRepo repository.UserRepository,
+	userRepository repository.UserRepository,
 	// 其他仓库...
 ) *Services {
 	return &Services{
-		UserService: NewUserService(userRepo),
+		UserService: NewUserService(userRepository),
 		// 初始化其他服务...
 	}
 }

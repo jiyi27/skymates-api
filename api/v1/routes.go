@@ -7,5 +7,5 @@ import (
 
 // RegisterRoutes 注册V1版本的所有API路由
 func RegisterRoutes(mux *http.ServeMux, services *service.Services) {
-	registerUserRoutes(mux, nil)
+	registerUserRoutes(mux, services.UserService)
 }
