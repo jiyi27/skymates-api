@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"github.com/jmoiron/sqlx"
 	servererrors "skymates-api/errors"
 	"skymates-api/internal/model"
 	"time"
@@ -27,11 +28,11 @@ type UserRepository interface {
 
 // MySQLUserRepository 实现了 UserRepository 接口, 使用 MySQL 数据库
 type MySQLUserRepository struct {
-	db *sql.DB
+	db *sqlx.DB // 使用 sqlx.DB 替代 sql.DB
 }
 
 // NewUserRepository 返回一个基于 MySQL 的用户存储库
-func NewUserRepository(db *sql.DB) UserRepository {
+func NewUserRepository(db *sqlx.DB) UserRepository {
 	return &MySQLUserRepository{db: db}
 }
 
@@ -50,10 +51,8 @@ func (r *MySQLUserRepository) Create(user *model.User) error {
 
 	// 执行插入操作
 	query := `INSERT INTO users (username, hashed_password, email, avatar_url, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)`
-	_, err := r.db.Exec(query,
-		user.ID, user.Username, user.Password,
-		user.Email, user.AvatarURL, user.CreatedAt, user.UpdatedAt)
+		VALUES (:username, :hashed_password, :email, :avatar_url, :created_at, :updated_at)`
+	_, err := r.db.NamedExec(query, user)
 	if err != nil {
 		return servererrors.NewInternalError("创建用户失败", err)
 	}
@@ -80,12 +79,9 @@ func (r *MySQLUserRepository) GetUserBy(queryType QueryType, value string) (*mod
 		return nil, servererrors.NewInternalError("无效的查询类型", nil)
 	}
 
-	row := r.db.QueryRow(query, value)
 	var user model.User
-	// 扫描结果到 user 实例
-	if err := row.Scan(
-		&user.ID, &user.Username, &user.Password,
-		&user.Email, &user.AvatarURL, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	err := r.db.Get(&user, query, value)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, servererrors.NewNotFoundError("用户未找到", err)
 		}
@@ -109,7 +105,11 @@ func (r *MySQLUserRepository) CheckExists(queryType QueryType, value string) (bo
 	}
 
 	var count int
-	if err := r.db.QueryRow(query, value).Scan(&count); err != nil {
+	err := r.db.Get(&count, query, value)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, servererrors.NewInternalError("检查用户存在性失败", err)
 	}
 	return count > 0, nil

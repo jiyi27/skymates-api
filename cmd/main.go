@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"net/http"
 	v1 "skymates-api/api/v1"
@@ -24,15 +25,25 @@ func main() {
 		}
 	}(db)
 
-	// 2. 初始化仓库
-	userRepository := repository.NewUserRepository(db)
-	services := &service.Services{UserService: service.NewUserService(userRepository)}
+	// 2. 将 *sql.DB 转换为 *sqlx.DB
+	// *sql.DB 和 *sqlx.DB 共享同一个底层连接池, 调用 db.Close() 会关闭整个连接池，因此只需关闭一次即可
+	sqlxDB := sqlx.NewDb(db, "mysql")
 
-	// 3. 创建 HTTP 路由
+	// 3. 初始化仓库
+	userRepository := repository.NewUserRepository(sqlxDB)
+	termRepository := repository.NewTermRepository(sqlxDB)
+
+	// 4. 初始化服务
+	services := &service.Services{
+		UserService: service.NewUserService(userRepository),
+		TermService: service.NewTermService(termRepository),
+	}
+
+	// 5. 创建 HTTP 路由
 	router := http.NewServeMux()
 	v1.RegisterRoutes(router, services)
 
-	// 4. 添加中间件
+	// 6. 添加中间件
 	handler := addGlobalMiddlewares(router)
 	log.Fatal(http.ListenAndServe(":8080", handler))
 }

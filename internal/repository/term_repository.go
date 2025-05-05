@@ -3,174 +3,94 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
+	"skymates-api/internal/model"
+	"time"
 
-	servererrors "skymates-api/errors"
-	"skymates-api/internal/types"
+	"github.com/jmoiron/sqlx"
 )
 
 // TermRepository 定义术语存储库接口
 type TermRepository interface {
-	// SearchTerms 根据关键字搜索术语，最多返回 20 条记录
-	// 优先返回完全匹配，其次前缀匹配，最后包含匹配；同一匹配级别下，名称更短者靠前
-	SearchTerms(ctx context.Context, keyword string) ([]types.Term, error)
-	// GetTermByID 根据 ID 查询术语详情，如果不存在则返回 NotFoundError
-	GetTermByID(ctx context.Context, id int64) (*types.TermDetail, error)
-	// ListTermsByCategory 列出指定分类下的术语，支持基于游标的分页
-	// lastID 为上一次查询最后一条记录的 ID；limit 为每页大小
-	// 返回值 hasMore 表示是否还有更多记录
-	ListTermsByCategory(ctx context.Context, categoryID int64, lastID *int64, limit int) ([]types.Term, bool, error)
-	// CountTermsInCategory 统计指定分类下的术语总数
-	CountTermsInCategory(ctx context.Context, categoryID int64) (int, error)
+	SearchTerms(ctx context.Context, keyword string) ([]model.Term, error)
+	GetTermByID(ctx context.Context, id int64) (*model.TermDetail, error)
+	ListTermsByCategory(ctx context.Context, categoryID int64, lastID *int64, limit int) ([]model.Term, bool, error)
+	CreateTerm(ctx context.Context, term *model.Term, categoryIDs []int64) (int64, error)
+	UpdateTerm(ctx context.Context, term *model.Term, categoryIDs []int64) error
 }
 
-// MySQLTermRepository 实例包含一个连接池 *sql.DB
-type MySQLTermRepository struct {
-	db *sql.DB
+// TermRepositoryImpl 实现 TermRepository 接口
+type TermRepositoryImpl struct {
+	db *sqlx.DB
 }
 
-// NewTermRepository 创建并返回一个 MySQLTermRepository 实例
-func NewTermRepository(db *sql.DB) TermRepository {
-	return &MySQLTermRepository{db: db}
+// NewTermRepository 创建 TermRepository 实例
+func NewTermRepository(db *sqlx.DB) TermRepository {
+	return &TermRepositoryImpl{db: db}
 }
 
-// SearchTerms 根据关键字搜索术语，最多返回 20 条记录
-// 优先返回完全匹配，其次前缀匹配，最后包含匹配；同一匹配级别下，名称更短者靠前
-func (r *MySQLTermRepository) SearchTerms(ctx context.Context, keyword string) ([]types.Term, error) {
-	// 构建模糊匹配模式
-	exactPattern := keyword                // 完全匹配
-	prefixPattern := keyword + "%"         // 前缀匹配
-	containsPattern := "%" + keyword + "%" // 包含匹配
-
-	query := `
-		SELECT id, name
-		FROM terms
-		WHERE name LIKE ?
-		ORDER BY
-		  CASE
-		    WHEN name = ? THEN 1
-		    WHEN name LIKE ? THEN 2
-		    ELSE 3
-		  END,
-		  CHAR_LENGTH(name)
-		LIMIT 20`
-
-	// 执行查询
-	rows, err := r.db.QueryContext(ctx, query,
-		containsPattern,
-		exactPattern,
-		prefixPattern,
-	)
+// SearchTerms 根据关键字搜索术语
+func (r *TermRepositoryImpl) SearchTerms(ctx context.Context, keyword string) ([]model.Term, error) {
+	query := `SELECT id, name FROM terms WHERE name LIKE ?`
+	var terms []model.Term
+	err := r.db.SelectContext(ctx, &terms, query, "%"+keyword+"%")
 	if err != nil {
-		return nil, servererrors.NewInternalError("搜索术语失败", err)
-	}
-	defer rows.Close()
-
-	// 解析结果集
-	var terms []types.Term
-	for rows.Next() {
-		var t types.Term
-		if err := rows.Scan(&t.ID, &t.Name); err != nil {
-			return nil, servererrors.NewInternalError("扫描术语失败", err)
-		}
-		terms = append(terms, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, servererrors.NewInternalError("迭代术语失败", err)
+		log.Printf("TermRepositoryImpl.SearchTerms: %v", err)
+		return nil, err
 	}
 	return terms, nil
 }
 
-// GetTermByID 根据 ID 查询术语详情，如果不存在则返回 NotFoundError
-func (r *MySQLTermRepository) GetTermByID(ctx context.Context, id int64) (*types.TermDetail, error) {
-	// 使用 JSON_ARRAYAGG 和 JSON_OBJECT 构建分类数组
-	query := `
-		SELECT
-		  t.id,
-		  t.name,
-		  t.explanation,
-		  t.source,
-		  t.video_url,
-		  t.created_at,
-		  t.updated_at,
-		  COALESCE(
-		    JSON_ARRAYAGG(
-		      JSON_OBJECT(
-		        'id', c.id,
-		        'name', c.name,
-		        'parent_id', c.parent_id,
-		        'created_at', c.created_at
-		      )
-		    ),
-		    JSON_ARRAY()
-		  ) AS categories
-		FROM terms t
-		LEFT JOIN term_category_relations tcr ON t.id = tcr.term_id
-		LEFT JOIN term_categories c ON tcr.category_id = c.id
-		WHERE t.id = ?
-		GROUP BY t.id, t.name, t.explanation, t.source, t.video_url, t.created_at, t.updated_at
-	`
-
-	row := r.db.QueryRowContext(ctx, query, id)
-	var detail types.TermDetail
-	if err := row.Scan(
-		&detail.ID,
-		&detail.Name,
-		&detail.Explanation,
-		&detail.Source,
-		&detail.VideoURL,
-		&detail.CreatedAt,
-		&detail.UpdatedAt,
-		&detail.Categories,
-	); err != nil {
+// GetTermByID 根据 ID 获取术语详情
+func (r *TermRepositoryImpl) GetTermByID(ctx context.Context, id int64) (*model.TermDetail, error) {
+	query := `SELECT id, name, explanation, source_url, created_at, updated_at FROM terms WHERE id = ?`
+	var term model.TermDetail
+	err := r.db.GetContext(ctx, &term, query, id)
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, servererrors.NewNotFoundError(fmt.Sprintf("未找到 ID=%d 的术语", id), err)
+			return nil, nil
 		}
-		return nil, servererrors.NewInternalError("查询术语详情失败", err)
+		log.Printf("TermRepositoryImpl.GetTermByID: %v", err)
+		return nil, err
 	}
-	return &detail, nil
+
+	// 获取关联的分类 ID
+	categoryQuery := `SELECT category_id FROM term_category_relations WHERE term_id = ?`
+	var categoryIDs []int64
+	err = r.db.SelectContext(ctx, &categoryIDs, categoryQuery, id)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.GetTermByID: %v", err)
+		return nil, err
+	}
+	term.CategoryIDs = categoryIDs
+	return &term, nil
 }
 
-// ListTermsByCategory 列出指定分类下的术语，支持基于游标的分页
-// lastID 为上一次查询最后一条记录的 ID；limit 为每页大小
-// 返回值 hasMore 表示是否还有更多记录
-func (r *MySQLTermRepository) ListTermsByCategory(ctx context.Context, categoryID int64, lastID *int64, limit int) ([]types.Term, bool, error) {
-	// 多取一条用于判断是否有更多
-	query := `
-		SELECT t.id, t.name
-		FROM terms t
-		JOIN term_category_relations tcr ON t.id = tcr.term_id
-		WHERE tcr.category_id = ?
-		  AND (? IS NULL OR t.id < ?)
-		ORDER BY t.id DESC
-		LIMIT ?
-	`
+// ListTermsByCategory 列出指定分类下的术语
+func (r *TermRepositoryImpl) ListTermsByCategory(ctx context.Context, categoryID int64, lastID *int64, limit int) ([]model.Term, bool, error) {
+	var query string
+	var args []interface{}
+	if lastID == nil {
+		query = `SELECT t.id, t.name FROM terms t
+                 JOIN term_category_relations r ON t.id = r.term_id
+                 WHERE r.category_id = ? ORDER BY t.id ASC LIMIT ?`
+		args = []interface{}{categoryID, limit + 1}
+	} else {
+		query = `SELECT t.id, t.name FROM terms t
+                 JOIN term_category_relations r ON t.id = r.term_id
+                 WHERE r.category_id = ? AND t.id > ? ORDER BY t.id ASC LIMIT ?`
+		args = []interface{}{categoryID, *lastID, limit + 1}
+	}
 
-	rows, err := r.db.QueryContext(ctx, query,
-		categoryID,
-		lastID,
-		lastID,
-		limit+1,
-	)
+	var terms []model.Term
+	err := r.db.SelectContext(ctx, &terms, query, args...)
 	if err != nil {
-		return nil, false, servererrors.NewInternalError("列出分类术语失败", err)
-	}
-	defer rows.Close()
-
-	var terms []types.Term
-	for rows.Next() {
-		var t types.Term
-		if err := rows.Scan(&t.ID, &t.Name); err != nil {
-			return nil, false, servererrors.NewInternalError("扫描术语失败", err)
-		}
-		terms = append(terms, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, false, servererrors.NewInternalError("迭代分类术语失败", err)
+		log.Printf("TermRepositoryImpl.ListTermsByCategory: %v", err)
+		return nil, false, err
 	}
 
-	// 判断是否有更多
 	hasMore := len(terms) > limit
 	if hasMore {
 		terms = terms[:limit]
@@ -178,12 +98,106 @@ func (r *MySQLTermRepository) ListTermsByCategory(ctx context.Context, categoryI
 	return terms, hasMore, nil
 }
 
-// CountTermsInCategory 统计指定分类下的术语总数
-func (r *MySQLTermRepository) CountTermsInCategory(ctx context.Context, categoryID int64) (int, error) {
-	query := `SELECT COUNT(*) FROM term_category_relations WHERE category_id = ?`
-	var count int
-	if err := r.db.QueryRowContext(ctx, query, categoryID).Scan(&count); err != nil {
-		return 0, servererrors.NewInternalError("统计分类术语数量失败", err)
+// CreateTerm 创建新术语并关联分类
+func (r *TermRepositoryImpl) CreateTerm(ctx context.Context, term *model.Term, categoryIDs []int64) (int64, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		return 0, err
 	}
-	return count, nil
+	defer func(tx *sqlx.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		}
+	}(tx)
+
+	// 插入 terms 表
+	query := `INSERT INTO terms (name, explanation, source_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+	result, err := tx.ExecContext(ctx, query, term.Name, term.Explanation, term.SourceURL, time.Now(), time.Now())
+	if err != nil {
+		log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		return 0, err
+	}
+
+	// 插入 term_category_relations 表
+	for _, categoryID := range categoryIDs {
+		_, err := tx.ExecContext(ctx, `INSERT INTO term_category_relations (term_id, category_id) VALUES (?, ?)`, id, categoryID)
+		if err != nil {
+			log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+			return 0, err
+		}
+	}
+
+	// 更新 terms 表的 category_list 字段
+	categoryList, _ := json.Marshal(categoryIDs)
+	_, err = tx.ExecContext(ctx, `UPDATE terms SET category_list = ? WHERE id = ?`, categoryList, id)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("TermRepositoryImpl.CreateTerm: %v", err)
+		return 0, err
+	}
+	return id, nil
+}
+
+// UpdateTerm 更新术语并更新关联分类
+func (r *TermRepositoryImpl) UpdateTerm(ctx context.Context, term *model.Term, categoryIDs []int64) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		return err
+	}
+	defer func(tx *sqlx.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		}
+	}(tx)
+
+	// 更新 terms 表
+	query := `UPDATE terms SET name = ?, explanation = ?, source_url = ?, updated_at = ? WHERE id = ?`
+	_, err = tx.ExecContext(ctx, query, term.Name, term.Explanation, term.SourceURL, time.Now(), term.ID)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		return err
+	}
+
+	// 删除旧的关联
+	_, err = tx.ExecContext(ctx, `DELETE FROM term_category_relations WHERE term_id = ?`, term.ID)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		return err
+	}
+
+	// 插入新的关联
+	for _, categoryID := range categoryIDs {
+		_, err := tx.ExecContext(ctx, `INSERT INTO term_category_relations (term_id, category_id) VALUES (?, ?)`, term.ID, categoryID)
+		if err != nil {
+			log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+			return err
+		}
+	}
+
+	// 更新 terms 表的 category_list 字段
+	categoryList, _ := json.Marshal(categoryIDs)
+	_, err = tx.ExecContext(ctx, `UPDATE terms SET category_list = ? WHERE id = ?`, categoryList, term.ID)
+	if err != nil {
+		log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("TermRepositoryImpl.UpdateTerm: %v", err)
+		return err
+	}
+	return nil
 }

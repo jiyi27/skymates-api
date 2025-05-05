@@ -7,6 +7,7 @@ import (
 	serverErrors "skymates-api/errors"
 	v1 "skymates-api/internal/dto/v1"
 	"skymates-api/internal/service"
+	"skymates-api/internal/validator"
 )
 
 // UserHandler 用户处理器
@@ -24,33 +25,21 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 
 // Register 处理用户注册
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.ResponseJSON(w, http.StatusMethodNotAllowed, "method not allowed", nil)
-		return
-	}
-
-	var req v1.RegisterDto
-	if err := h.DecodeJSON(r, &req); err != nil {
+	var registerDto v1.RegisterDto
+	if err := h.DecodeJSON(r, &registerDto); err != nil {
 		h.ResponseJSON(w, http.StatusBadRequest, "invalid request format", nil)
 		return
 	}
 
 	// 基本验证
-	if len(req.Username) < 3 {
-		h.ResponseJSON(w, http.StatusBadRequest, "username must be at least 3 characters", nil)
-		return
-	}
-	if len(req.Password) < 6 {
-		h.ResponseJSON(w, http.StatusBadRequest, "password must be at least 6 characters", nil)
-		return
-	}
-	if !h.ValidateEmail(req.Email) {
-		h.ResponseJSON(w, http.StatusBadRequest, "invalid email", nil)
+	msg, err := validator.ValidateRequest(registerDto)
+	if err != nil {
+		h.ResponseJSON(w, http.StatusBadRequest, msg, nil)
 		return
 	}
 
 	// 调用服务层注册用户
-	user, err := h.userService.Register(req)
+	user, err := h.userService.Register(registerDto)
 	if err != nil {
 		var serverErr *serverErrors.ServerError
 		if errors.As(err, &serverErr) {
@@ -74,23 +63,20 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login 处理用户登录
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.ResponseJSON(w, http.StatusMethodNotAllowed, "method not allowed", nil)
-		return
-	}
-
-	var req v1.LoginDto
-	if err := h.DecodeJSON(r, &req); err != nil {
+	var loginDto v1.LoginDto
+	if err := h.DecodeJSON(r, &loginDto); err != nil {
 		h.ResponseJSON(w, http.StatusBadRequest, "invalid request format", nil)
 		return
 	}
 
-	if req.Email == "" || req.Password == "" {
-		h.ResponseJSON(w, http.StatusBadRequest, "email and password are required", nil)
+	// 基本验证
+	msg, err := validator.ValidateRequest(loginDto)
+	if err != nil {
+		h.ResponseJSON(w, http.StatusBadRequest, msg, nil)
 		return
 	}
 
-	user, token, err := h.userService.Login(req)
+	user, token, err := h.userService.Login(loginDto)
 	if err != nil {
 		var serverErr *serverErrors.ServerError
 		if errors.As(err, &serverErr) {

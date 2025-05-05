@@ -4,14 +4,15 @@ import "skymates-api/internal/repository"
 
 type Services struct {
 	UserService UserService
+	TermService TermService
 }
 
 func NewServices(
 	userRepository repository.UserRepository,
-	// 其他仓库...
+	termRepository repository.TermRepository,
 ) *Services {
 	return &Services{
 		UserService: NewUserService(userRepository),
-		// 初始化其他服务...
+		TermService: NewTermService(termRepository),
 	}
 }
